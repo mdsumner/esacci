@@ -1,0 +1,69 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# esacci
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of esacci is to get chlorophyll data from the inter-webs.
+
+Previously we did this stuff for ocean colour and sea ice with our
+raadtools, but we can pretty much use online sources from anywhere now.
+
+## Example
+
+This is a basic example which shows you how to solve a common problem:
+
+``` r
+months <- c(10, 11, 12, 1, 2, 3)
+years <- rep(c(2020, 2021), each = length(months))
+dates <- ISOdate(years, months, 1)
+
+ex <- c(50, 85, -71, -59)
+
+template <- "NETCDF:\"/vsicurl/https://dap.ceda.ac.uk/neodc/esacci/ocean_colour/data/v6.0-release/geographic/netcdf/all_products/monthly/v6.0/%s/ESACCI-OC-L3S-OC_PRODUCTS-MERGED-1M_MONTHLY_4km_GEO_PML_OCx_QAA-%s-fv6.0.nc\":chlor_a"
+
+vapour_raster_data <- memoise::memoize(vapour::gdal_raster_data)
+for (i in seq_along(dates)) {
+  dsn <- sprintf(template, format(dates[i], "%Y"), format(dates[i], "%Y%m"))
+  d <- vapour_raster_data(vapour::vapour_vrt(dsn, projection = "OGC:CRS84"), target_ext = ex)
+
+ terra::writeRaster(terra(d), sprintf("chlor_a_%s.tif", format(dates[i], "%Y-%m")))  
+}
+```
+
+``` r
+
+months <- c(10, 11, 12, 1, 2, 3)
+years <- rep(c(2020, 2021), each = length(months))
+dates <- ISOdate(years, months, 1)
+
+ex <- c(50, 85, -71, -59)
+
+terra <- function(x) {
+  a <- attributes(x)
+  dm <- a$dimension
+  terra::rast(terra::ext(a$ex), ncols = dm[1], nrows = dm[2], crs  = a$projection, vals = x[[1L]])
+}
+
+icedata <- memoise::memoize(function(.x) terra::rast(sds::nsidc_seaice(.x)))
+
+pal <- palr::chl_pal(palette = T)
+
+par(mfrow = n2mfrow(length(dates)), mar = c(2, 2, 0, 0))
+
+for (i in seq_along(dates)) {
+  ice <- icedata(dates[i])
+  cl <- sf::st_as_sf(terra::project(terra::crop(terra::as.contour(ice, levels = 15), terra::ext(0, 5e6, -5e6, 5e6)), "OGC:CRS84"))
+d <- vapour::gdal_raster_data(sprintf("chlor_a_%s.tif", format(dates[i], "%Y-%m")))
+  ximage::ximage(d, asp = 1/cos(mean(ex[3:4]) * pi/180), col = pal$cols, breaks = pal$breaks, axes = F)
+  maps::map(add = TRUE)
+  plot(cl, add = T, lty = 2)
+  if (i >= 10) axis(1)
+  if (i %in% c(1, 4, 7, 10) ) axis(2)
+  text(59, -69, format(dates[i], "%Y-%b"))
+}
+```
+
+<img src="man/figures/README-plot-1.png" width="100%" />
