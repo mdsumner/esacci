@@ -87,6 +87,26 @@ d <- vapour::gdal_raster_data(file)
 }
 
 
+par(mfrow = n2mfrow(length(dates)), mar = c(2, 2, 0, 0))
+
+for (i in seq_along(dates)) {
+  ice <- icedata(dates[i])
+  cl <- sf::st_as_sf(terra::project(terra::crop(terra::as.contour(ice, levels = 15), terra::ext(0, 5e6, -5e6, 5e6)), "OGC:CRS84"))
+  file <- sprintf("chlor_a_%s.tif", format(dates[i], "%Y-%m"))
+d <- vapour::gdal_raster_data(file)
+  im <- matrix(palr::image_pal(d[[1]], col = pal$cols, breaks = pal$breaks), attr(d, "dimension")[2], byrow = TRUE)
+  ximage::ximage(im, attr(d, "extent"), asp = 1/cos(mean(ex[3:4]) * pi/180), col = pal$cols, breaks = pal$breaks, axes = F)
+  maps::map(add = TRUE)
+  axis(1)
+  axis(2)
+  grid()
+  plot(cl, add = T, lty = 2)
+  if (i >= 10) axis(1)
+  if (i %in% c(1, 4, 7, 10) ) axis(2)
+  text(59, -69, format(dates[i], "%Y-%b"))
+  
+}
+
 ```
 
 
